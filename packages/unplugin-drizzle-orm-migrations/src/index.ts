@@ -2,7 +2,7 @@ import type { UnpluginInstance } from 'unplugin'
 
 import { Buffer } from 'node:buffer'
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { cwd, env } from 'node:process'
 
 import { loadConfig } from 'c12'
@@ -12,19 +12,35 @@ import { createUnplugin } from 'unplugin'
 import { splitSQL } from './utils/split'
 
 export function newPlugin(isRolldownLike = false) {
+  const virtualName = 'virtual:drizzle-migrations.sql'
+  const plainName = 'drizzle-migrations:sql'
+
+  const virtualPrefix = 'virtual:drizzle-migrations/'
+  const plainPrefix = 'drizzle-migrations/'
+
   // https://github.com/rolldown/rolldown/issues/1115
-  const VirtualModuleID = 'virtual:drizzle-migrations.sql'
-  const ResolvedVirtualModuleId = !isRolldownLike ? `\0${VirtualModuleID}` : VirtualModuleID
+  const maybeApplyRolldownPrefix = (id: string) =>
+    !isRolldownLike ? `\0${id}` : id
 
-  const VirtualModuleIDPlain = 'drizzle-migrations:sql'
-  const ResolvedVirtualModuleIDPlain = !isRolldownLike ? `\0${VirtualModuleIDPlain}` : VirtualModuleIDPlain
+  const DrizzleORMMigrations: UnpluginInstance<{ configName?: string, root?: string, dbName?: string } | undefined, false>
+    = createUnplugin((rawOptions = {}) => {
+      const defaults = {
+        root: cwd(),
+        configName: 'drizzle',
+        dbName: undefined,
+      }
 
-  const DrizzleORMMigrations: UnpluginInstance<{ root?: string } | undefined, false>
-    = createUnplugin((rawOptions = { root: cwd() }) => {
-      const options = rawOptions || { root: cwd() }
+      const options = { ...defaults, ...rawOptions }
 
-      if (options.root == null)
-        options.root = cwd()
+      const resolvedVirtualName = maybeApplyRolldownPrefix(virtualName)
+      const resolvedPlainName = maybeApplyRolldownPrefix(plainName)
+      const resolvedDbVirtualName = options.dbName
+        ? maybeApplyRolldownPrefix(`${virtualPrefix}${options.dbName}.sql`)
+        : null
+      const resolvedDbPlainName = options.dbName
+        ? maybeApplyRolldownPrefix(`${plainPrefix}${options.dbName}.sql`)
+        : null
+
       let _drizzleConfig: {
         out?: string | null
         schema?: string | null
@@ -43,7 +59,7 @@ export function newPlugin(isRolldownLike = false) {
         name: 'drizzle-migrations',
         buildStart: async () => {
           const drizzleConfig = await loadConfig({
-            name: 'drizzle',
+            name: options.configName,
             cwd: options.root,
           })
 
@@ -51,7 +67,11 @@ export function newPlugin(isRolldownLike = false) {
           if (!_drizzleConfig.out)
             return
 
-          const journalJSONContent = (await readFile(join(rawOptions.root, _drizzleConfig.out, 'meta/_journal.json'))).toString('utf-8')
+          const outDir = isAbsolute(_drizzleConfig.out)
+            ? _drizzleConfig.out
+            : join(options.root, _drizzleConfig.out)
+
+          const journalJSONContent = (await readFile(join(outDir, 'meta/_journal.json'))).toString('utf-8')
           const journal = JSON.parse(journalJSONContent) as {
             entries: {
               idx: number
@@ -64,7 +84,7 @@ export function newPlugin(isRolldownLike = false) {
 
           for (let index = 0; index < journal.entries.length; index++) {
             const { when, idx, tag } = journal.entries[index]
-            const migrateSQLFilePath = join(rawOptions.root, _drizzleConfig.out, `${tag}.sql`)
+            const migrateSQLFilePath = join(outDir, `${tag}.sql`)
             const migrateSQLFileContent = (await readFile(migrateSQLFilePath)).toString('utf-8')
 
             migrateSQLFileContents.push({
@@ -77,16 +97,29 @@ export function newPlugin(isRolldownLike = false) {
           }
         },
         resolveId(source) {
-          if (source.startsWith(VirtualModuleID) || source.startsWith(VirtualModuleIDPlain))
-            return !isRolldownLike ? `\0${source}` : source
+          if (options.dbName) {
+            const fullName = `${virtualPrefix}${options.dbName}.sql`
+            const fullPlain = `${plainPrefix}${options.dbName}.sql`
+            if (source === fullName || source === fullPlain)
+              return maybeApplyRolldownPrefix(source)
+          }
+          else
+            if (source === virtualName || source === plainName) {
+              return maybeApplyRolldownPrefix(source)
+            }
         },
         load(id) {
-          if (!id.startsWith(ResolvedVirtualModuleId) && !id.startsWith(ResolvedVirtualModuleIDPlain))
-            return null
           if (!_drizzleConfig.out)
             return null
-
-          return `export default ${JSON.stringify(migrateSQLFileContents, null, env.NODE_ENV === 'production' ? 0 : 2)}`
+          if (
+            id === resolvedVirtualName
+            || id === resolvedPlainName
+            || id === resolvedDbVirtualName
+            || id === resolvedDbPlainName
+          ) {
+            return `export default ${JSON.stringify(migrateSQLFileContents, null, env.NODE_ENV === 'production' ? 0 : 2)}`
+          }
+          return null
         },
       }
     })
