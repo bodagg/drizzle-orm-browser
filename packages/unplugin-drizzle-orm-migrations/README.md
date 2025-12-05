@@ -19,7 +19,7 @@ yarn i @proj-airi/unplugin-drizzle-orm-migrations -D
 npm i @proj-airi/unplugin-drizzle-orm-migrations -D
 ```
 
-## Usage
+## Single Database Usage
 
 ```typescript
 import DrizzleORMMigrations from '@proj-airi/unplugin-drizzle-orm-migrations/vite'
@@ -28,7 +28,16 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [
     // ...
+
+    // use defaults
     DrizzleORMMigrations(),
+    // root: defaults to cwd
+    // configName: defaults to 'drizzle' ( so it loads drizzle.config.ts)
+
+    // or with options
+    DrizzleORMMigrations({ root: 'path/to/db/users', configName: 'users' }),
+    // configName: load users.config.ts from that folder
+
     // ...
   ],
 })
@@ -38,6 +47,29 @@ Then you can import the migrations in your code:
 
 ```ts
 import migrations from 'drizzle-migrations.sql'
+```
+
+## Multi Database Usage
+
+```typescript
+import DrizzleORMMigrations from '@proj-airi/unplugin-drizzle-orm-migrations/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  plugins: [
+    // ...
+    DrizzleORMMigrations({ root: 'path/to/db/analytics', dbName: 'analytics' }),
+    DrizzleORMMigrations({ root: 'path/to/db/users', dbName: 'users' }),
+    // ...
+  ],
+})
+```
+
+Then you can import the migrations in your code:
+
+```ts
+import { migrations as analytics } from 'drizzle-migrations/analytics.sql'
+import { migrations as users } from 'drizzle-migrations/users.sql'
 ```
 
 ## TypeScript support

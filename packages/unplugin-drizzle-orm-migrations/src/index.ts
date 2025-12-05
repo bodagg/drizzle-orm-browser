@@ -22,7 +22,7 @@ export function newPlugin(isRolldownLike = false) {
   const maybeApplyRolldownPrefix = (id: string) =>
     !isRolldownLike ? `\0${id}` : id
 
-  const DrizzleORMMigrations: UnpluginInstance<{ configName?: string, root?: string, dbName?: string } | undefined, false>
+  const DrizzleORMMigrations: UnpluginInstance<{ root?: string, configName?: string, dbName?: string } | undefined, false>
     = createUnplugin((rawOptions = {}) => {
       const defaults = {
         root: cwd(),
@@ -59,8 +59,8 @@ export function newPlugin(isRolldownLike = false) {
         name: 'drizzle-migrations',
         buildStart: async () => {
           const drizzleConfig = await loadConfig({
-            name: options.configName,
             cwd: options.root,
+            name: options.configName,
           })
 
           _drizzleConfig = drizzleConfig.config
