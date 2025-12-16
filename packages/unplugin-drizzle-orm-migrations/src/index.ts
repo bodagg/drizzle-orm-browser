@@ -64,16 +64,18 @@ export function newPlugin(isRolldownLike = false) {
           })
 
           _drizzleConfig = drizzleConfig.config
-          if (!_drizzleConfig.out)
+          if (!_drizzleConfig.out) {
+            console.warn('[drizzle-migrations] no output directory configured in drizzle config, skipping migration bundling')
             return
-
+          }
           const rootDir = resolve(options.root)
           const outConfig = resolve(_drizzleConfig.out!)
           const outDir = outConfig.startsWith(rootDir)
             ? outConfig
             : resolve(rootDir, outConfig)
 
-          const journalJSONContent = (await readFile(join(outDir, 'meta/_journal.json'))).toString('utf-8')
+          const journalPath = join(outDir, 'meta/_journal.json')
+          const journalJSONContent = (await readFile(journalPath)).toString('utf-8')
           const journal = JSON.parse(journalJSONContent) as {
             entries: {
               idx: number
@@ -84,8 +86,7 @@ export function newPlugin(isRolldownLike = false) {
             }[]
           }
 
-          for (let index = 0; index < journal.entries.length; index++) {
-            const { when, idx, tag } = journal.entries[index]
+          for (const { when, idx, tag } of journal.entries) {
             const migrateSQLFilePath = join(outDir, `${tag}.sql`)
             const migrateSQLFileContent = (await readFile(migrateSQLFilePath)).toString('utf-8')
 
