@@ -2,7 +2,7 @@ import type { UnpluginInstance } from 'unplugin'
 
 import { Buffer } from 'node:buffer'
 import { readFile } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { cwd, env } from 'node:process'
 
 import { loadConfig } from 'c12'
@@ -67,9 +67,11 @@ export function newPlugin(isRolldownLike = false) {
           if (!_drizzleConfig.out)
             return
 
-          const outDir = isAbsolute(_drizzleConfig.out)
-            ? _drizzleConfig.out
-            : join(options.root, _drizzleConfig.out)
+          const rootDir = resolve(options.root)
+          const outConfig = resolve(_drizzleConfig.out!)
+          const outDir = outConfig.startsWith(rootDir)
+            ? outConfig
+            : resolve(rootDir, outConfig)
 
           const journalJSONContent = (await readFile(join(outDir, 'meta/_journal.json'))).toString('utf-8')
           const journal = JSON.parse(journalJSONContent) as {

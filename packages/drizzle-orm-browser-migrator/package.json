@@ -29,6 +29,11 @@
       "types": "./dist/pg/index.d.mts",
       "import": "./dist/pg/index.mjs",
       "node": "./dist/pg/index.mjs"
+    },
+    "./sqlocal": {
+      "types": "./dist/sqlocal/index.d.mts",
+      "import": "./dist/sqlocal/index.mjs",
+      "node": "./dist/sqlocal/index.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -49,9 +54,18 @@
     "attw": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
   "peerDependencies": {
-    "drizzle-orm": ">=0.44.0"
+    "drizzle-orm": ">=0.44.0",
+    "sqlocal": "*"
+  },
+  "peerDependenciesMeta": {
+    "sqlocal": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@guiiai/logg": "^1.1.0"
+  },
+  "devDependencies": {
+    "sqlocal": "^0.16.0"
   }
 }

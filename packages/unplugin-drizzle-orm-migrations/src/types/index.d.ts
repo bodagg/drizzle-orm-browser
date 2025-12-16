@@ -7,7 +7,7 @@ declare module 'virtual:drizzle-migrations.sql' {
     sql: string[]
   }
 
-  const migrations: Migration[]
+  export const migrations: Migration[]
   export default migrations
 }
 
@@ -20,7 +20,7 @@ declare module 'drizzle-migrations.sql' {
     sql: string[]
   }
 
-  const migrations: Migration[]
+  export const migrations: Migration[]
   export default migrations
 }
 
@@ -32,7 +32,7 @@ declare module 'virtual:drizzle-migrations/*.sql' {
     hash: string
     sql: string[]
   }
-  const migrations: Migration[]
+  export const migrations: Migration[]
   export default migrations
 }
 
@@ -44,6 +44,6 @@ declare module 'drizzle-migrations/*.sql' {
     hash: string
     sql: string[]
   }
-  const migrations: Migration[]
+  export const migrations: Migration[]
   export default migrations
 }
