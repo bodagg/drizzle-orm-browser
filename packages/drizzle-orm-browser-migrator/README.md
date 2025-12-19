@@ -32,6 +32,23 @@ const db = drizzle({ client: pgLite })
 await migrate(db, migrations)
 ```
 
+### SQLocal usage
+
+```typescript
+import { migrate } from '@proj-airi/drizzle-orm-browser-migrator/sqlocal'
+import migrations from 'drizzle-migrations.sql'
+import { drizzle } from 'drizzle-orm/sqlite-proxy'
+import { SQLocal } from 'sqlocal'
+import { SQLocalDrizzle } from 'sqlocal/drizzle'
+
+const api = new SQLocal()
+
+const { driver } = new SQLocalDrizzle({ processor: api.processor })
+const db = drizzle(driver)
+
+await migrate(api, db, migrations)
+```
+
 ## Other side projects born from Project AIRI
 
 - [Awesome AI VTuber](https://github.com/proj-airi/awesome-ai-vtuber): A curated list of AI VTubers and related projects
