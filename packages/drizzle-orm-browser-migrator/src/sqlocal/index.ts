@@ -1,5 +1,4 @@
 import type { SqliteRemoteDatabase } from 'drizzle-orm/sqlite-proxy'
-import type { SQLocal } from 'sqlocal'
 
 import { Format, useLogg } from '@guiiai/logg'
 
@@ -12,9 +11,8 @@ async function listTables<TSchema extends Record<string, unknown>>(db: SqliteRem
     WHERE type = 'table';
   `)
 }
-// see https://sqlocal.dev/api/transaction#drizzle
+
 export async function migrate<TSchema extends Record<string, unknown>>(
-  api: SQLocal,
   db: SqliteRemoteDatabase<TSchema>,
   bundledMigrations: {
     idx: number
@@ -57,7 +55,7 @@ export async function migrate<TSchema extends Record<string, unknown>>(
     return
   }
 
-  await api.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     for (let i = 0; i < pending.length; i++) {
       const m = pending[i]
 
@@ -66,15 +64,13 @@ export async function migrate<TSchema extends Record<string, unknown>>(
       log.log(`     hash => ${m.hash}`)
 
       for (const stmt of m.sql) {
-        await tx.query(db.run(stmt))
+        await tx.run(stmt)
       }
 
-      await tx.query(
-        db.run(`
-          INSERT INTO __drizzle_migrations (hash, created_at, tag)
-          VALUES ('${m.hash}', ${m.when}, '${m.tag}');
-          `),
-      )
+      await tx.run(`
+        INSERT INTO __drizzle_migrations (hash, created_at, tag)
+        VALUES ('${m.hash}', ${m.when}, '${m.tag}');
+      `)
     }
   })
 
