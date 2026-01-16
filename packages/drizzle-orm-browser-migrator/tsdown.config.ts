@@ -1,12 +1,13 @@
-import { defineConfig } from 'tsdown'
+import { defineConfig } from "tsdown";
 
 export default defineConfig({
   entry: {
-    'index': './src/index.ts',
-    'pglite/index': './src/pglite/index.ts',
-    'pg/index': './src/pg/index.ts',
-    'sqlocal/index': './src/sqlocal/index.ts',
+    index: "./src/index.ts",
+    "pglite/index": "./src/pglite/index.ts",
+    "pg/index": "./src/pg/index.ts",
+    "sqlocal/index": "./src/sqlocal/index.ts",
+    "duckdb/index": "./src/duckdb/index.ts",
   },
   unused: true,
   fixedExtension: true,
-})
+});

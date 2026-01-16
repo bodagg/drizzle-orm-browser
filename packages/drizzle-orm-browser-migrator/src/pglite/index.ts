@@ -1,88 +1,45 @@
 import type { PgliteDatabase } from 'drizzle-orm/pglite'
 
-import { Format, useLogg } from '@guiiai/logg'
 import { sql } from 'drizzle-orm'
 
-import packageJSON from '../../package.json' with { type: 'json' }
+import type { ExtractTx, Logger, Migration, MigrationDialect } from '../shared'
+
+import { createExecute, createExecuteWithSql, createQueryHelpers, createRunHelpers, listTables as listTablesShared, migrate as migrateShared } from '../shared'
 
 async function listTables<TSchema extends Record<string, unknown>>(db: PgliteDatabase<TSchema>) {
-  const res = await db.execute(sql`
-    SELECT
-      table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public';
-  `)
-
-  return res.rows
+  return listTablesShared(
+    () => db.execute<{ table_name: string }>(sql`
+      SELECT
+        table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public';
+    `),
+    r => r.rows,
+  )
 }
 
-export async function migrate<TSchema extends Record<string, unknown>>(db: PgliteDatabase<TSchema>, bundledMigrations: {
-  idx: number
-  when: number
-  tag: string
-  hash: string
-  sql: string[]
-}[]) {
-  const log = useLogg(packageJSON.name).withFormat(Format.Pretty)
-  const TABLE_NAME = sql.identifier('__drizzle_migrations')
+export async function migrate<TSchema extends Record<string, unknown>>(db: PgliteDatabase<TSchema>, bundledMigrations: Migration[], logger?: Logger) {
+  type Tx = ExtractTx<PgliteDatabase<TSchema>>
 
-  await db.execute(
-    sql`CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
-      id bigserial PRIMARY KEY NOT NULL,
-      hash text NOT NULL,
-      tag text NOT NULL,
-      created_at bigint NOT NULL
-    );`,
-  )
+  const execute = createExecuteWithSql<PgliteDatabase<TSchema>>(sql)
 
-  const migratedHistory = await db.execute<{
-    id: number
-    hash: string
-    created_at: number
-  }>(
-    sql`SELECT
-      id,
-      hash,
-      created_at
-    FROM ${TABLE_NAME}
-    ORDER BY created_at DESC
-    LIMIT 1;`,
-  )
+  const queryHelpers = createQueryHelpers<PgliteDatabase<TSchema>>(execute)
+  const runHelpers = createRunHelpers<PgliteDatabase<TSchema>>(execute)
 
-  const lastMigration = migratedHistory.rows.at(0)
-  const pendingMigration = bundledMigrations.filter((migration) => {
-    const timestamp = lastMigration?.created_at ?? 0
-    // if there is no last migration, then all migrations should be returned
-    // otherwise, if any of the migrations happens later than the last migration, they should be considered pending
-    return !lastMigration || Number(timestamp) < migration.when
-  })
-  if (pendingMigration.length === 0) {
-    log.withField('tables', await listTables(db)).debug('no pending migrations')
-    log.log('no pending migrations to apply')
-    return
+  const dialect: MigrationDialect<PgliteDatabase<TSchema>, Tx> = {
+    ...queryHelpers,
+    ...runHelpers,
+    listTables,
+    execute: createExecute<Tx>(),
+    getTableDefinition: (tableName) => {
+      return `CREATE TABLE IF NOT EXISTS ${tableName} (
+        id bigserial PRIMARY KEY NOT NULL,
+        hash text NOT NULL,
+        created_at bigint NOT NULL
+      );`
+    },
+    tableName: '__drizzle_migrations',
   }
 
-  await db.transaction(async (tx) => {
-    for (let i = 0; i < pendingMigration.length; i++) {
-      const migration = pendingMigration[i]
-
-      log.log(`${i + 1}. Deploying migration:`)
-      log.log(`     tag  => ${migration.tag}`)
-      log.log(`     hash => ${migration.hash}`)
-      for (const stmt of migration.sql) {
-        await tx.execute(stmt)
-      }
-
-      await tx.execute(sql`
-        INSERT INTO ${TABLE_NAME} ("hash", "created_at", "tag") VALUES (
-          ${sql.raw(`'${migration.hash}'`)},
-          ${sql.raw(`${migration.when}`)},
-          ${sql.raw(`'${migration.tag}'`)}
-        );
-      `)
-    }
-  })
-
-  log.withField('tables', await listTables(db)).debug('migration successful')
-  log.log(`all ${pendingMigration.length} pending migrations applied!`)
+  await migrateShared(db, dialect, bundledMigrations, logger)
 }

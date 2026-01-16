@@ -20,6 +20,11 @@
       "import": "./dist/index.mjs",
       "node": "./dist/index.mjs"
     },
+    "./duckdb": {
+      "types": "./dist/duckdb/index.d.mts",
+      "import": "./dist/duckdb/index.mjs",
+      "node": "./dist/duckdb/index.mjs"
+    },
     "./pglite": {
       "types": "./dist/pglite/index.d.mts",
       "import": "./dist/pglite/index.mjs",
@@ -54,6 +59,8 @@
     "attw": "attw --pack . --profile esm-only --ignore-rules cjs-resolves-to-esm"
   },
   "peerDependencies": {
+    "@proj-airi/drizzle-duckdb-wasm": "*",
+    "@proj-airi/duckdb-wasm": "*",
     "drizzle-orm": ">=0.44.0",
     "sqlocal": "*"
   },
@@ -66,6 +73,8 @@
     "@guiiai/logg": "^1.1.0"
   },
   "devDependencies": {
+    "@proj-airi/drizzle-duckdb-wasm": "^0.4.29",
+    "@proj-airi/duckdb-wasm": "^0.4.29",
     "sqlocal": "^0.16.0"
   }
 }
